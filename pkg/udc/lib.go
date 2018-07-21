@@ -66,7 +66,7 @@ var (
 	// Flags
 	Fuser   = flag.String("username", "", "Datera Account Username")
 	Fpass   = flag.String("password", "", "Datera Account Password")
-	Fip     = flag.String("mgmt-ip", "", "Datera Management IP")
+	Fip     = flag.String("hostname", "", "Datera Hostname/Management IP")
 	Ftenant = flag.String("tenant", "", "Datera Tenant")
 	Fapi    = flag.String("api-version", "", "Datera Api Version")
 )
