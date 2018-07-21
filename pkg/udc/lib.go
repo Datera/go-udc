@@ -22,7 +22,7 @@ const (
 	EnvPass            = "DAT_PASS"
 	EnvTenant          = "DAT_TENANT"
 	EnvApi             = "DAT_API"
-	LATEST             = "v2.2"
+	LATEST             = "2.2"
 )
 
 var (
@@ -71,26 +71,6 @@ type UDC struct {
 	ApiVersion string `json:"api_version"`
 }
 
-func printEnvs() {
-	fmt.Println()
-	fmt.Println("DATERA ENVIRONMENT VARIABLES")
-	fmt.Println("============================")
-	longest := 0
-	keys := make([]string, len(EnvHelp))
-	for key := range EnvHelp {
-		if len(key) > longest {
-			longest = len(key)
-		}
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		buff := strings.Repeat(" ", (longest - len(key)))
-		fmt.Printf("%s%s -- %s", buff, key, EnvHelp[key])
-	}
-	fmt.Println()
-}
-
 func getHome() string {
 	usr, err := user.Current()
 	if err != nil {
@@ -108,21 +88,17 @@ func getWD() string {
 }
 
 func findConfigFile() (string, error) {
-	found := ""
 	for _, loc := range ConfigSearchPath {
 		for _, f := range Configs {
-			if _, err := os.Stat(path.Join(loc, f)); os.IsNotExist(err) {
-				found = f
+			if _, err := os.Stat(path.Join(loc, f)); !os.IsNotExist(err) {
+				return f, nil
 			}
 		}
 	}
-	if _, err := os.Stat(CinderEtc); os.IsNotExist(err) && found == "" {
-		found = CinderEtc
+	if _, err := os.Stat(CinderEtc); !os.IsNotExist(err) {
+		return CinderEtc, nil
 	}
-	if found == "" {
-		return found, fmt.Errorf("No Universal Datera Config file found")
-	}
-	return found, nil
+	return "", fmt.Errorf("No Universal Datera Config file found")
 }
 
 func unpackConfig(c []byte) (*UDC, error) {
@@ -172,8 +148,11 @@ func readCinderConf() (*UDC, error) {
 
 }
 
-func GetConfig() (*UDC, error) {
+func getBaseConfig() (*UDC, error) {
 	cf, err := findConfigFile()
+	if err != nil {
+		return nil, err
+	}
 	dat := []byte{}
 	if err != nil {
 		return nil, err
@@ -187,4 +166,52 @@ func GetConfig() (*UDC, error) {
 		return nil, err
 	}
 	return unpackConfig(dat)
+}
+
+func envOverrideConfig(cf *UDC) {
+	//EnvMgmt, EnvUser, EnvPass, EnvTenant, EnvApi
+	if mgt, ok := os.LookupEnv(EnvMgmt); ok {
+		cf.MgmtIp = mgt
+	}
+	if usr, ok := os.LookupEnv(EnvUser); ok {
+		cf.Username = usr
+	}
+	if pass, ok := os.LookupEnv(EnvPass); ok {
+		cf.Password = pass
+	}
+	if ten, ok := os.LookupEnv(EnvTenant); ok {
+		cf.Tenant = ten
+	}
+	if api, ok := os.LookupEnv(EnvApi); ok {
+		cf.ApiVersion = api
+	}
+}
+
+func GetConfig() (*UDC, error) {
+	cf, err := getBaseConfig()
+	if err != nil {
+		return nil, err
+	}
+	envOverrideConfig(cf)
+	return cf, nil
+}
+
+func PrintEnvs() {
+	fmt.Println()
+	fmt.Println("DATERA ENVIRONMENT VARIABLES")
+	fmt.Println("============================")
+	longest := 0
+	keys := make([]string, 0)
+	for key := range EnvHelp {
+		if len(key) > longest {
+			longest = len(key)
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		buff := strings.Repeat(" ", (longest - len(key)))
+		fmt.Printf("%s%s -- %s\n", buff, key, EnvHelp[key])
+	}
+	fmt.Println()
 }
