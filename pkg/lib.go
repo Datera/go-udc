@@ -1,10 +1,13 @@
 package udc
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/user"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -19,6 +22,7 @@ const (
 	EnvPass            = "DAT_PASS"
 	EnvTenant          = "DAT_TENANT"
 	EnvApi             = "DAT_API"
+	LATEST             = "v2.2"
 )
 
 var (
@@ -49,14 +53,22 @@ var (
 		EnvTenant: "Datera tenant ID. eg: SE-OpenStack",
 		EnvApi:    "Datera API version. eg: 2.2",
 	}
+
+	IPRE_STR = `(\d{1,3}\.){3}\d{1,3}`
+	IPRE     = regexp.MustCompile(IPRE_STR)
+
+	SIP = regexp.MustCompile(fmt.Sprintf(`san_ip\s+?=\s+?(?P<san_ip>%s)`, IPRE_STR))
+	SLG = regexp.MustCompile(`san_login\s+?=\s+?(?P<san_login>.*)`)
+	SPW = regexp.MustCompile(`san_password\s+?=\s+?(?P<san_password>.*)`)
+	TNT = regexp.MustCompile(`datera_tenant_id\s+?=\s+?(?P<tenant_id>.*)`)
 )
 
 type UDC struct {
-	Username   string
-	Password   string
-	MgmtIp     string
-	Tenant     string
-	ApiVersion string
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	MgmtIp     string `json:"mgmt_ip"`
+	Tenant     string `json:"tenant"`
+	ApiVersion string `json:"api_version"`
 }
 
 func printEnvs() {
@@ -95,6 +107,84 @@ func getWD() string {
 	return wd
 }
 
-func GetConfig() *UDC {
-	return nil
+func findConfigFile() (string, error) {
+	found := ""
+	for _, loc := range ConfigSearchPath {
+		for _, f := range Configs {
+			if _, err := os.Stat(path.Join(loc, f)); os.IsNotExist(err) {
+				found = f
+			}
+		}
+	}
+	if _, err := os.Stat(CinderEtc); os.IsNotExist(err) && found == "" {
+		found = CinderEtc
+	}
+	if found == "" {
+		return found, fmt.Errorf("No Universal Datera Config file found")
+	}
+	return found, nil
+}
+
+func unpackConfig(c []byte) (*UDC, error) {
+	conf := UDC{}
+	err := json.Unmarshal(c, &conf)
+	if err != nil {
+		return nil, err
+	}
+	return &conf, nil
+}
+
+func readCinderConf() (*UDC, error) {
+	data := ""
+	foundIndex := 0
+	foundLastIndex := -1
+	cdat, err := ioutil.ReadFile(CinderEtc)
+	lines := strings.Split(string(cdat), "\n")
+	if err != nil {
+		return nil, err
+	}
+	for index, line := range lines {
+		if "[datera]" == strings.TrimSpace(line) {
+			foundIndex = index
+			break
+		}
+	}
+	for index, line := range lines {
+		if strings.Contains(line, "[") && strings.Contains(line, "]") {
+			foundLastIndex = index + foundIndex
+			break
+		}
+	}
+	data = strings.Join(lines[foundIndex:foundLastIndex], "")
+	sanIp := SIP.FindStringSubmatch(data)[1]
+	sanLogin := SLG.FindStringSubmatch(data)[1]
+	sanPassword := SPW.FindStringSubmatch(data)[1]
+	mTenant := TNT.FindStringSubmatch(data)
+	tenant := ""
+	if len(mTenant) > 1 {
+		tenant = mTenant[1]
+	}
+	return &UDC{MgmtIp: sanIp,
+		Username:   sanLogin,
+		Password:   sanPassword,
+		Tenant:     tenant,
+		ApiVersion: LATEST}, nil
+
+}
+
+func GetConfig() (*UDC, error) {
+	cf, err := findConfigFile()
+	dat := []byte{}
+	if err != nil {
+		return nil, err
+	}
+	if cf == CinderEtc {
+		return readCinderConf()
+	} else {
+		dat, err = ioutil.ReadFile(cf)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return unpackConfig(dat)
 }
