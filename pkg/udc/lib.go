@@ -2,6 +2,7 @@ package udc
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -61,6 +62,13 @@ var (
 	SLG = regexp.MustCompile(`san_login\s+?=\s+?(?P<san_login>.*)`)
 	SPW = regexp.MustCompile(`san_password\s+?=\s+?(?P<san_password>.*)`)
 	TNT = regexp.MustCompile(`datera_tenant_id\s+?=\s+?(?P<tenant_id>.*)`)
+
+	// Flags
+	Fuser   = flag.String("username", "", "Datera Account Username")
+	Fpass   = flag.String("password", "", "Datera Account Password")
+	Fip     = flag.String("mgmt-ip", "", "Datera Management IP")
+	Ftenant = flag.String("tenant", "", "Datera Tenant")
+	Fapi    = flag.String("api-version", "", "Datera Api Version")
 )
 
 type UDC struct {
@@ -169,7 +177,6 @@ func getBaseConfig() (*UDC, error) {
 }
 
 func envOverrideConfig(cf *UDC) {
-	//EnvMgmt, EnvUser, EnvPass, EnvTenant, EnvApi
 	if mgt, ok := os.LookupEnv(EnvMgmt); ok {
 		cf.MgmtIp = mgt
 	}
@@ -187,12 +194,32 @@ func envOverrideConfig(cf *UDC) {
 	}
 }
 
+func optOverrideConfig(cf *UDC) {
+	if *Fip != "" {
+		cf.MgmtIp = *Fip
+	}
+	if *Fuser != "" {
+		cf.Username = *Fuser
+	}
+	if *Fpass != "" {
+		cf.Password = *Fpass
+	}
+	if *Ftenant != "" {
+		cf.Tenant = *Ftenant
+	}
+	if *Fapi != "" {
+		cf.ApiVersion = *Fapi
+	}
+}
+
 func GetConfig() (*UDC, error) {
+	flag.Parse()
 	cf, err := getBaseConfig()
 	if err != nil {
 		return nil, err
 	}
 	envOverrideConfig(cf)
+	optOverrideConfig(cf)
 	return cf, nil
 }
 
