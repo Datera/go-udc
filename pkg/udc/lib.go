@@ -63,6 +63,8 @@ var (
 	SPW = regexp.MustCompile(`san_password\s+?=\s+?(?P<san_password>.*)`)
 	TNT = regexp.MustCompile(`datera_tenant_id\s+?=\s+?(?P<tenant_id>.*)`)
 
+	_config *UDC
+
 	// Flags
 	Fuser   = flag.String("username", "", "Datera Account Username")
 	Fpass   = flag.String("password", "", "Datera Account Password")
@@ -77,6 +79,11 @@ type UDC struct {
 	MgmtIp     string `json:"mgmt_ip"`
 	Tenant     string `json:"tenant"`
 	ApiVersion string `json:"api_version"`
+}
+
+func prettyPrint(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", "    ")
+	return string(s)
 }
 
 func getHome() string {
@@ -220,7 +227,15 @@ func GetConfig() (*UDC, error) {
 	}
 	envOverrideConfig(cf)
 	optOverrideConfig(cf)
-	return cf, nil
+	_config = cf
+	return _config, nil
+}
+
+func PrintConfig() {
+	// Shallow copy since config doesn't have any arrays
+	cf := *_config
+	cf.Password = "******"
+	fmt.Println(prettyPrint(cf))
 }
 
 func PrintEnvs() {
