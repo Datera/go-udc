@@ -220,14 +220,16 @@ func optOverrideConfig(cf *UDC) {
 }
 
 func GetConfig() (*UDC, error) {
-	flag.Parse()
-	cf, err := getBaseConfig()
-	if err != nil {
-		return nil, err
+	if _config == nil {
+		flag.Parse()
+		cf, err := getBaseConfig()
+		if err != nil {
+			return nil, err
+		}
+		envOverrideConfig(cf)
+		optOverrideConfig(cf)
+		_config = cf
 	}
-	envOverrideConfig(cf)
-	optOverrideConfig(cf)
-	_config = cf
 	return _config, nil
 }
 
@@ -235,7 +237,7 @@ func PrintConfig() {
 	// Shallow copy since config doesn't have any arrays
 	cf := *_config
 	cf.Password = "******"
-	fmt.Println(prettyPrint(cf))
+	log.Info(prettyPrint(cf))
 }
 
 func PrintEnvs() {
