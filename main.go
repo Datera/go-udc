@@ -12,7 +12,6 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("Found a Universal Datera Config File")
 	udc.PrintConfig()
 	udc.PrintEnvs()
 }

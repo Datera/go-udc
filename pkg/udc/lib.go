@@ -105,8 +105,10 @@ func getWD() string {
 func findConfigFile() (string, error) {
 	for _, loc := range ConfigSearchPath {
 		for _, f := range Configs {
-			if _, err := os.Stat(path.Join(loc, f)); !os.IsNotExist(err) {
-				return f, nil
+			uc := path.Join(loc, f)
+			if _, err := os.Stat(uc); !os.IsNotExist(err) {
+				fmt.Printf("Found a Universal Datera Config File: %s\n", uc)
+				return uc, nil
 			}
 		}
 	}
