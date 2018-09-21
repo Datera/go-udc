@@ -115,7 +115,7 @@ func findConfigFile() (string, error) {
 	if _, err := os.Stat(CinderEtc); !os.IsNotExist(err) {
 		return CinderEtc, nil
 	}
-	return "", fmt.Errorf("No Universal Datera Config file found")
+	return "", fmt.Errorf("NOTFOUND: No Universal Datera Config file found")
 }
 
 func unpackConfig(c []byte) (*UDC, error) {
@@ -166,11 +166,8 @@ func readCinderConf() (*UDC, error) {
 }
 
 func getBaseConfig() (*UDC, error) {
-	cf, err := findConfigFile()
-	if err != nil {
-		return nil, err
-	}
 	dat := []byte{}
+	cf, err := findConfigFile()
 	if err != nil {
 		return nil, err
 	}
@@ -221,15 +218,46 @@ func optOverrideConfig(cf *UDC) {
 	}
 }
 
+func checkConfig(cf *UDC) error {
+	missing := []string{}
+	if cf.MgmtIp == "" {
+		missing = append(missing, "mgmt_ip")
+	}
+	if cf.Username == "" {
+		missing = append(missing, "username")
+	}
+	if cf.Password == "" {
+		missing = append(missing, "password")
+	}
+	if cf.Tenant == "" {
+		missing = append(missing, "tenant")
+	}
+	if cf.ApiVersion == "" {
+		missing = append(missing, "api_version")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("Missing UDC keys: %s", missing)
+	}
+	return nil
+}
+
 func GetConfig() (*UDC, error) {
 	if _config == nil {
 		flag.Parse()
 		cf, err := getBaseConfig()
-		if err != nil {
+		if err != nil && strings.HasPrefix(err.Error(), "NOTFOUND") {
+			// We don't want to error out on no UDC file found in case
+			// the entire UDC config is being provided by environment
+			// variables or CLI opts
+			cf = &UDC{}
+		} else if err != nil {
 			return nil, err
 		}
 		envOverrideConfig(cf)
 		optOverrideConfig(cf)
+		if err = checkConfig(cf); err != nil {
+			return nil, err
+		}
 		_config = cf
 	}
 	return _config, nil
