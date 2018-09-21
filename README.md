@@ -1,6 +1,6 @@
-# Datera Universal Config (Golang)
+# Universal Datera Config (Golang)
 
-The Datera Universal Config (DUC) is a config that can be specified in a
+The Universal Datera Config (UDC) is a config that can be specified in a
 number of ways:
 
 * JSON file with any of the following names:
@@ -33,12 +33,12 @@ number of ways:
     - -tenant
     - -api-version
 
-## Developing with Datera Universal Config
+## Developing with Universal Datera Config
 
-The Golang DUC is the following struct:
+The Golang UDC is the following struct:
 
 ```go
-type UDC struct {
+type g struct {
     Username   string `json:"username"`
     Password   string `json:"password"`
     MgmtIp     string `json:"mgmt_ip"`
@@ -47,7 +47,7 @@ type UDC struct {
 }
 ```
 
-To use DUC in a new python tool is very simple just add the following to
+To use UDC in a new python tool is very simple just add the following to
 your Go main package
 
 ```go
