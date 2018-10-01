@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path"
 	"regexp"
 	"sort"
 	"strings"
 
+	homedir "github.com/mitchellh/go-homedir"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -87,11 +87,11 @@ func prettyPrint(i interface{}) string {
 }
 
 func getHome() string {
-	usr, err := user.Current()
+	dir, err := homedir.Dir()
 	if err != nil {
 		log.Fatal(err)
 	}
-	return usr.HomeDir
+	return dir
 }
 
 func getWD() string {
