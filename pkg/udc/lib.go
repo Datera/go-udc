@@ -23,7 +23,9 @@ const (
 	EnvPass            = "DAT_PASS"
 	EnvTenant          = "DAT_TENANT"
 	EnvApi             = "DAT_API"
-	LATEST             = "2.2"
+	EnvLdap            = "DAT_LDAP"
+	Latest             = "2.2"
+	Version            = "1.1.0"
 )
 
 var (
@@ -36,7 +38,8 @@ var (
  "username": "admin",
  "password": "password",
  "tenant": "/root",
- "api_version": "2.2"}
+ "api_version": "2.2",
+ "ldap": ""}
 `
 	ExampleRC = fmt.Sprintf(`\
 # DATERA ENVIRONMENT VARIABLES
@@ -45,6 +48,7 @@ var (
 %s=password
 %s=/root
 %s=2.2
+%s=
 `, EnvMgmt, EnvUser, EnvPass, EnvTenant, EnvApi)
 
 	EnvHelp = map[string]string{
@@ -53,16 +57,17 @@ var (
 		EnvPass:   "Datera account password",
 		EnvTenant: "Datera tenant ID. eg: SE-OpenStack",
 		EnvApi:    "Datera API version. eg: 2.2",
+		EnvLdap:   "Datera LDAP authentication server",
 	}
 
 	IPRE_STR = `(\d{1,3}\.){3}\d{1,3}`
 	IPRE     = regexp.MustCompile(IPRE_STR)
 
-	SIP = regexp.MustCompile(fmt.Sprintf(`san_ip\s+?=\s+?(?P<san_ip>%s)`, IPRE_STR))
-	SLG = regexp.MustCompile(`san_login\s+?=\s+?(?P<san_login>.*)`)
-	SPW = regexp.MustCompile(`san_password\s+?=\s+?(?P<san_password>.*)`)
-	TNT = regexp.MustCompile(`datera_tenant_id\s+?=\s+?(?P<tenant_id>.*)`)
-
+	SIP     = regexp.MustCompile(fmt.Sprintf(`san_ip\s+?=\s+?(?P<san_ip>%s)`, IPRE_STR))
+	SLG     = regexp.MustCompile(`san_login\s+?=\s+?(?P<san_login>.*)`)
+	SPW     = regexp.MustCompile(`san_password\s+?=\s+?(?P<san_password>.*)`)
+	TNT     = regexp.MustCompile(`datera_tenant_id\s+?=\s+?(?P<tenant_id>.*)`)
+	LDP     = regexp.MustCompile(`datera_ldap_server\s+?=\s+?(?P<ldap>.*)`)
 	_config *UDC
 
 	// Flags
@@ -71,6 +76,7 @@ var (
 	Fip     = flag.String("hostname", "", "Datera Hostname/Management IP")
 	Ftenant = flag.String("tenant", "", "Datera Tenant")
 	Fapi    = flag.String("api-version", "", "Datera Api Version")
+	Fldap   = flag.String("ldap", "", "Datera LDAP authentication server")
 )
 
 type UDC struct {
@@ -79,6 +85,7 @@ type UDC struct {
 	MgmtIp     string `json:"mgmt_ip"`
 	Tenant     string `json:"tenant"`
 	ApiVersion string `json:"api_version"`
+	Ldap       string `json:"ldap"`
 }
 
 func prettyPrint(i interface{}) string {
@@ -153,15 +160,21 @@ func readCinderConf() (*UDC, error) {
 	sanLogin := SLG.FindStringSubmatch(data)[1]
 	sanPassword := SPW.FindStringSubmatch(data)[1]
 	mTenant := TNT.FindStringSubmatch(data)
-	tenant := ""
+	mLdap := LDP.FindStringSubmatch(data)
+	tenant := "/root"
+	ldap := ""
 	if len(mTenant) > 1 {
 		tenant = mTenant[1]
+	}
+	if len(mLdap) > 1 {
+		ldap = mLdap[1]
 	}
 	return &UDC{MgmtIp: sanIp,
 		Username:   sanLogin,
 		Password:   sanPassword,
 		Tenant:     tenant,
-		ApiVersion: LATEST}, nil
+		ApiVersion: Latest,
+		Ldap:       ldap}, nil
 
 }
 
@@ -198,6 +211,9 @@ func envOverrideConfig(cf *UDC) {
 	if api, ok := os.LookupEnv(EnvApi); ok {
 		cf.ApiVersion = api
 	}
+	if ldap, ok := os.LookupEnv(EnvLdap); ok {
+		cf.Ldap = ldap
+	}
 }
 
 func optOverrideConfig(cf *UDC) {
@@ -215,6 +231,18 @@ func optOverrideConfig(cf *UDC) {
 	}
 	if *Fapi != "" {
 		cf.ApiVersion = *Fapi
+	}
+	if *Fldap != "" {
+		cf.Ldap = *Fldap
+	}
+}
+
+func defaults(cf *UDC) {
+	if cf.Tenant == "" {
+		cf.Tenant = "/root"
+	}
+	if cf.ApiVersion == "" {
+		cf.ApiVersion = Latest
 	}
 }
 
@@ -255,6 +283,7 @@ func GetConfig() (*UDC, error) {
 		}
 		envOverrideConfig(cf)
 		optOverrideConfig(cf)
+		defaults(cf)
 		if err = checkConfig(cf); err != nil {
 			return nil, err
 		}
