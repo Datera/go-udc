@@ -11,7 +11,8 @@ number of ways:
       "username": "admin",
       "password": "password",
       "tenant": "/root",
-      "api_version": "2.2"}
+      "api_version": "2.2",
+      "ldap": ""}
 ```
 * The file can be in any of the following places.  This is also the lookup
   order for config files:
@@ -25,6 +26,7 @@ number of ways:
     - DAT\_PASS
     - DAT\_TENANT
     - DAT\_API
+    - DAT\_LDAP
 * Most tools built to use the Datera Universal Config will also allow
   for providing/overriding any of the config values via command line flags.
     - -hostname
@@ -32,6 +34,7 @@ number of ways:
     - -password
     - -tenant
     - -api-version
+    - -ldap
 
 ## Developing with Universal Datera Config
 
@@ -44,6 +47,7 @@ type g struct {
     MgmtIp     string `json:"mgmt_ip"`
     Tenant     string `json:"tenant"`
     ApiVersion string `json:"api_version"`
+    Ldap       string `json:"ldap"`
 }
 ```
 
