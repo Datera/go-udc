@@ -41,7 +41,7 @@ number of ways:
 The Golang UDC is the following struct:
 
 ```go
-type g struct {
+type UDC struct {
     Username   string `json:"username"`
     Password   string `json:"password"`
     MgmtIp     string `json:"mgmt_ip"`
