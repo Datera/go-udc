@@ -10,6 +10,7 @@ import (
 
 var (
 	Fversion = flag.Bool("version", false, "Show UDC package version")
+	Fgen     = flag.String("genconfig", "", "Generate UDC config, options: [json, shell]")
 )
 
 func main() {
@@ -18,6 +19,13 @@ func main() {
 		fmt.Printf("UDC version: %s\n", udc.Version)
 		os.Exit(0)
 	}
+
+	if *Fgen != "" {
+		if err := udc.GenConfig(*Fgen); err != nil {
+			panic(err)
+		}
+	}
+
 	_, err := udc.GetConfig()
 	if err != nil {
 		fmt.Println(err)

@@ -1,2 +1,3 @@
 v1.0.0 -- Initial Version
 v1.1.0 -- Added support for LDAP, made API_VERSION and TENANT optional
+v1.1.1 -- Added check for default mgmt_ip value, added GenConfig function

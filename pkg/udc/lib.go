@@ -25,7 +25,8 @@ const (
 	EnvApi             = "DAT_API"
 	EnvLdap            = "DAT_LDAP"
 	Latest             = "2.2"
-	Version            = "1.1.0"
+	Version            = "1.1.1"
+	ReplaceIp          = "REPLACE_ME_WITH_REAL_IP_OR_HOSTNAME"
 )
 
 var (
@@ -33,23 +34,23 @@ var (
 	UnixConfigHome   = path.Join(UnixHome, "datera")
 	ConfigSearchPath = []string{getWD(), UnixHome, UnixConfigHome, UnixSiteConfigHome}
 	Configs          = []string{".datera-config", "datera-config", ".datera-config.json", "datera-config.json"}
-	ExampleConfig    = `
-{"mgmt_ip": "1.1.1.1",
+	ExampleConfig    = fmt.Sprintf(`
+{"mgmt_ip": "%s",
  "username": "admin",
  "password": "password",
  "tenant": "/root",
  "api_version": "2.2",
  "ldap": ""}
-`
-	ExampleRC = fmt.Sprintf(`\
+`, ReplaceIp)
+	ExampleRC = fmt.Sprintf(`
 # DATERA ENVIRONMENT VARIABLES
-%s=1.1.1.1
-%s=admin
-%s=password
-%s=/root
-%s=2.2
-%s=
-`, EnvMgmt, EnvUser, EnvPass, EnvTenant, EnvApi)
+export %s=%s
+export %s=admin
+export %s=password
+export %s=/root
+export %s=2.2
+export %s=
+`, EnvMgmt, ReplaceIp, EnvUser, EnvPass, EnvTenant, EnvApi, EnvLdap)
 
 	EnvHelp = map[string]string{
 		EnvMgmt:   "Datera management IP address or hostname",
@@ -86,6 +87,7 @@ type UDC struct {
 	Tenant     string `json:"tenant"`
 	ApiVersion string `json:"api_version"`
 	Ldap       string `json:"ldap"`
+	udcFile    string
 }
 
 func prettyPrint(i interface{}) string {
@@ -125,12 +127,13 @@ func findConfigFile() (string, error) {
 	return "", fmt.Errorf("NOTFOUND: No Universal Datera Config file found")
 }
 
-func unpackConfig(c []byte) (*UDC, error) {
+func unpackConfig(c []byte, file string) (*UDC, error) {
 	conf := UDC{}
 	err := json.Unmarshal(c, &conf)
 	if err != nil {
 		return nil, err
 	}
+	conf.udcFile = file
 	return &conf, nil
 }
 
@@ -192,7 +195,7 @@ func getBaseConfig() (*UDC, error) {
 	if err != nil {
 		return nil, err
 	}
-	return unpackConfig(dat)
+	return unpackConfig(dat, cf)
 }
 
 func envOverrideConfig(cf *UDC) {
@@ -266,6 +269,14 @@ func checkConfig(cf *UDC) error {
 	if len(missing) > 0 {
 		return fmt.Errorf("Missing UDC keys: %s", missing)
 	}
+	if cf.MgmtIp == ReplaceIp {
+		udcFile := cf.udcFile
+		if udcFile == "" {
+			udcFile = "none found"
+		}
+		return fmt.Errorf("You must edit your UDC config file [%s] and provide "+
+			"at least the mgmt_ip of the Datera box you want to connect to", udcFile)
+	}
 	return nil
 }
 
@@ -317,4 +328,27 @@ func PrintEnvs() {
 		fmt.Printf("%s%s -- %s\n", buff, key, EnvHelp[key])
 	}
 	fmt.Println()
+}
+
+func GenConfig(style string) error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	var (
+		cf   string
+		name string
+	)
+	if style == "shell" {
+		cf = ExampleRC
+		name = "daterarc"
+	} else {
+		cf = ExampleConfig
+		name = "datera-config.json"
+	}
+	fmt.Printf("Writing datera config to %s/%s\n", wd, name)
+	if err := ioutil.WriteFile(name, []byte(cf), 0644); err != nil {
+		return err
+	}
+	return nil
 }
